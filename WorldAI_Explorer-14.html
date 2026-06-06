@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ما وراء المسارات وفوقها — World Explorer & AI Travel Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@400;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0d0d0d;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --gold: #c9a84c;
+    --gold-light: #f0d98a;
+    --rust: #b84a2e;
+    --teal: #2a7f7f;
+    --teal-light: #e0f0f0;
+    --sand: #d4c5a9;
+    --muted: #7a7065;
+    --white: #fdfaf5;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRAIN OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 3rem;
+    background: rgba(245, 240, 232, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--sand);
+  }
+
+  .nav-logo {
+    font-family: 'Amiri', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0px;
+    color: var(--ink);
+    direction: rtl;
+    line-height: 1.2;
+  }
+
+  .nav-logo span { color: var(--gold); }
+
+  .nav-tabs {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--sand);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .nav-tab {
+    padding: 0.5rem 1.4rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.2s;
+    border-right: 1px solid var(--sand);
+  }
+
+  .nav-tab:last-child { border-right: none; }
+  .nav-tab.active { background: var(--ink); color: var(--gold); }
+  .nav-tab:hover:not(.active) { background: var(--cream); color: var(--ink); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 6rem 2rem 4rem;
+    position: relative;
+    background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(201,168,76,0.12) 0%, transparent 70%);
+  }
+
+  .hero-eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.2s forwards;
+  }
+
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(3.5rem, 9vw, 8rem);
+    font-weight: 900;
+    line-height: 0.95;
+    color: var(--ink);
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.4s forwards;
+  }
+
+  .hero-title em {
+    font-style: italic;
+    color: var(--rust);
+    display: block;
+  }
+
+  .hero-sub {
+    font-size: 1.05rem;
+    color: var(--muted);
+    max-width: 520px;
+    line-height: 1.7;
+    margin-bottom: 2.5rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.6s forwards;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.8s forwards;
+  }
+
+  .btn-primary {
+    padding: 0.85rem 2.2rem;
+    background: var(--ink);
+    color: var(--gold);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary:hover { background: var(--rust); color: var(--white); transform: translateY(-2px); }
+
+  .btn-secondary {
+    padding: 0.85rem 2.2rem;
+    background: transparent;
+    color: var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid var(--ink);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover { background: var(--ink); color: var(--paper); }
+
+  .hero-stats {
+    display: flex;
+    gap: 3rem;
+    margin-top: 4rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 1s forwards;
+  }
+
+  .stat { text-align: center; }
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .stat-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: 0.2rem;
+  }
+
+  /* ── PAGES ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── SECTION ── */
+  .section {
+    padding: 5rem 3rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+  }
+
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 1rem;
+  }
+
+  .section-sub {
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 2.5rem;
+  }
+
+  /* ── SEARCH BAR ── */
+  .search-bar {
+    display: flex;
+    gap: 0;
+    max-width: 680px;
+    margin-bottom: 3rem;
+    border: 1.5px solid var(--ink);
+    background: var(--white);
+  }
+
+  .search-bar input {
+    flex: 1;
+    padding: 1rem 1.2rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    outline: none;
+  }
+
+  .search-bar input::placeholder { color: var(--sand); }
+
+  .search-bar button {
+    padding: 1rem 1.8rem;
+    background: var(--ink);
+    color: var(--gold);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+
+  .search-bar button:hover { background: var(--rust); }
+
+  /* ── COUNTRY GRID ── */
+  .country-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.5px;
+    background: var(--sand);
+    border: 1.5px solid var(--sand);
+  }
+
+  .country-card {
+    background: var(--white);
+    padding: 1.8rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .country-card::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--gold);
+    transform: scaleX(0);
+    transition: transform 0.3s;
+    transform-origin: left;
+  }
+
+  .country-card:hover::before { transform: scaleX(1); }
+  .country-card:hover { background: var(--cream); transform: translateY(-2px); }
+
+  .country-flag { font-size: 2.2rem; margin-bottom: 0.8rem; }
+
+  .country-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+
+  .country-continent {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+
+  .country-tagline {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── COUNTRY DETAIL ── */
+  .country-detail {
+    display: none;
+    animation: fadeUp 0.4s forwards;
+  }
+
+  .country-detail.open { display: block; }
+
+  .detail-header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 4rem 3rem 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .detail-header::after {
+    content: attr(data-flag);
+    position: absolute;
+    right: 3rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 8rem;
+    opacity: 0.15;
+  }
+
+  .detail-back {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-bottom: 1.5rem;
+    display: inline-block;
+    border: 1px solid var(--gold);
+    padding: 0.4rem 1rem;
+    transition: all 0.2s;
+  }
+
+  .detail-back:hover { background: var(--gold); color: var(--ink); }
+
+  .detail-country-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: var(--white);
+  }
+
+  .detail-country-sub {
+    color: var(--sand);
+    font-size: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .detail-body {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 3rem;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 3rem;
+  }
+
+  .info-block {
+    background: var(--white);
+    border: 1px solid var(--cream);
+    padding: 1.5rem;
+  }
+
+  .info-block-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .info-block-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+
+  .detail-ai-content {
+    background: var(--cream);
+    border-left: 4px solid var(--gold);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    line-height: 1.8;
+    font-size: 0.95rem;
+    color: var(--ink);
+  }
+
+  .cities-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .city-card {
+    background: var(--white);
+    border: 1px solid var(--cream);
+    padding: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .city-card:hover {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+  }
+
+  .city-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .city-type {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 2px;
+    color: var(--teal);
+    text-transform: uppercase;
+    margin-top: 0.3rem;
+  }
+
+  /* ── AI CHAT SECTION ── */
+  .ai-section {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 5rem 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-section::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(201,168,76,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .ai-inner { max-width: 900px; margin: 0 auto; }
+
+  .ai-section .section-title { color: var(--white); }
+
+  .ai-chat-box {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .chat-history {
+    min-height: 320px;
+    max-height: 480px;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .chat-history::-webkit-scrollbar { width: 4px; }
+  .chat-history::-webkit-scrollbar-thumb { background: var(--gold); }
+
+  .msg {
+    display: flex;
+    gap: 0.8rem;
+    animation: fadeUp 0.3s forwards;
+  }
+
+  .msg-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .msg.ai .msg-avatar { background: var(--gold); color: var(--ink); }
+  .msg.user .msg-avatar { background: var(--rust); color: var(--white); }
+
+  .msg-bubble {
+    background: rgba(255,255,255,0.06);
+    padding: 0.8rem 1rem;
+    border-radius: 2px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--paper);
+    max-width: 85%;
+    flex: 1;
+  }
+
+  .msg.user .msg-bubble { background: rgba(184,74,46,0.2); }
+
+  .chat-input-row {
+    display: flex;
+    border-top: 1px solid rgba(201,168,76,0.2);
+    background: rgba(255,255,255,0.03);
+  }
+
+  .chat-input-row textarea {
+    flex: 1;
+    padding: 1rem 1.2rem;
+    background: transparent;
+    border: none;
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    resize: none;
+    outline: none;
+    min-height: 60px;
+    max-height: 120px;
+  }
+
+  .chat-input-row textarea::placeholder { color: rgba(212,197,169,0.4); }
+
+  .chat-send {
+    padding: 0 1.5rem;
+    background: var(--gold);
+    color: var(--ink);
+    border: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+
+  .chat-send:hover { background: var(--gold-light); }
+  .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .quick-prompts {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: 1.2rem;
+  }
+
+  .quick-btn {
+    padding: 0.45rem 1rem;
+    background: transparent;
+    border: 1px solid rgba(201,168,76,0.35);
+    color: rgba(245,240,232,0.7);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .quick-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ── ITINERARY PAGE ── */
+  .itinerary-page { padding-top: 80px; }
+
+  .itin-hero {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 4rem 3rem;
+    text-align: center;
+  }
+
+  .itin-hero .section-title { color: var(--white); margin-bottom: 0.5rem; }
+
+  .itin-form {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 3rem;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .form-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .form-input {
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--sand);
+    background: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus { border-color: var(--gold); }
+
+  .form-input option { color: var(--ink); }
+
+  .generate-btn {
+    width: 100%;
+    padding: 1rem;
+    background: var(--ink);
+    color: var(--gold);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    margin-top: 1rem;
+    transition: all 0.2s;
+  }
+
+  .generate-btn:hover { background: var(--rust); color: var(--white); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── ITINERARY OUTPUT ── */
+  .itin-output {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 3rem 4rem;
+    display: none;
+  }
+
+  .itin-output.show { display: block; animation: fadeUp 0.5s forwards; }
+
+  .itin-day {
+    margin-bottom: 2rem;
+    border-left: 3px solid var(--gold);
+    padding-left: 1.5rem;
+    position: relative;
+  }
+
+  .itin-day::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: var(--gold);
+    border-radius: 50%;
+    position: absolute;
+    left: -6.5px;
+    top: 6px;
+  }
+
+  .itin-day-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .itin-day-content {
+    font-size: 0.92rem;
+    line-height: 1.8;
+    color: var(--muted);
+    white-space: pre-wrap;
+  }
+
+  /* ── LOADING ── */
+  .loading-dots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .loading-dots span {
+    width: 6px; height: 6px;
+    background: var(--gold);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── CONTINENTS FILTER ── */
+  .filter-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+
+  .filter-chip {
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--sand);
+    background: transparent;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted);
+  }
+
+  .filter-chip.active { background: var(--ink); color: var(--gold); border-color: var(--ink); }
+  .filter-chip:hover:not(.active) { border-color: var(--gold); color: var(--gold); }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--ink);
+    color: var(--muted);
+    text-align: center;
+    padding: 2rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+  }
+
+  footer span { color: var(--gold); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    nav { padding: 1rem 1.2rem; }
+    .nav-logo { font-size: 1.2rem; }
+    .section { padding: 3rem 1.2rem; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .hero-stats { gap: 1.5rem; }
+    .detail-body { padding: 1.5rem; }
+    .itin-form { padding: 1.5rem; }
+    .itin-output { padding: 0 1.5rem 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div style="font-family:'Amiri',serif;font-size:1.15rem;font-weight:700;direction:rtl;color:var(--ink);line-height:1.2;">ما وراء المسارات وفوقها</div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.45rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-top:2px;line-height:1;">Beyond &amp; Above Trails</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('explore')">Explore</button>
+    <button class="nav-tab" onclick="showPage('itinerary')">Itinerary AI</button>
+    <button class="nav-tab" onclick="showPage('chat')">Ask AI</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════
+     PAGE: EXPLORE
+══════════════════════════════════════ -->
+<div id="page-explore" class="page active">
+
+  <!-- Hero -->
+  <div class="hero">
+    <p class="hero-eyebrow">Your World, Unlocked</p>
+    <h1 class="hero-title">
+      Discover<br>Every<br><em>Corner</em>
+    </h1>
+    <p class="hero-sub">Explore 195 countries, thousands of cities, and get AI-powered insights on culture, food, history, and travel — all in one place.</p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="document.getElementById('explore-main').scrollIntoView({behavior:'smooth'})">Explore Countries</button>
+      <button class="btn-secondary" onclick="showPage('itinerary')">Plan My Trip</button>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-num">195</div><div class="stat-label">Countries</div></div>
+      <div class="stat"><div class="stat-num">10K+</div><div class="stat-label">Cities</div></div>
+      <div class="stat"><div class="stat-num">AI</div><div class="stat-label">Powered</div></div>
+    </div>
+  </div>
+
+  <!-- Country List -->
+  <div id="explore-main">
+    <div id="country-list-view">
+      <div class="section">
+        <p class="section-label">Browse the World</p>
+        <h2 class="section-title">Countries & Cities</h2>
+        <p class="section-sub">Click any country for AI-powered insights on culture, history, cities, food, and more.</p>
+
+        <div class="search-bar">
+          <input type="text" id="country-search" placeholder="Search countries..." oninput="filterCountries(this.value)">
+          <button onclick="filterCountries(document.getElementById('country-search').value)">Search</button>
+        </div>
+
+        <div class="filter-row" id="continent-filters">
+          <button class="filter-chip active" onclick="filterByContinent('all', this)">All</button>
+          <button class="filter-chip" onclick="filterByContinent('Asia', this)">Asia</button>
+          <button class="filter-chip" onclick="filterByContinent('Europe', this)">Europe</button>
+          <button class="filter-chip" onclick="filterByContinent('Africa', this)">Africa</button>
+          <button class="filter-chip" onclick="filterByContinent('Americas', this)">Americas</button>
+          <button class="filter-chip" onclick="filterByContinent('Oceania', this)">Oceania</button>
+          <button class="filter-chip" onclick="filterByContinent('Middle East', this)">Middle East</button>
+        </div>
+
+        <div class="country-grid" id="country-grid"></div>
+      </div>
+    </div>
+
+    <!-- Country Detail View -->
+    <div id="country-detail-view" class="country-detail">
+      <div class="detail-header" id="detail-header">
+        <div style="max-width:1100px;margin:0 auto;">
+          <span class="detail-back" onclick="closeDetail()">← Back to Countries</span>
+          <div id="detail-flag" style="font-size:3.5rem;margin-bottom:0.5rem;"></div>
+          <h1 class="detail-country-name" id="detail-name"></h1>
+          <p class="detail-country-sub" id="detail-sub"></p>
+        </div>
+      </div>
+      <div class="detail-body">
+        <div class="detail-grid">
+          <div class="info-block"><div class="info-block-label">Capital</div><div class="info-block-val" id="d-capital"></div></div>
+          <div class="info-block"><div class="info-block-label">Population</div><div class="info-block-val" id="d-pop"></div></div>
+          <div class="info-block"><div class="info-block-label">Currency</div><div class="info-block-val" id="d-currency"></div></div>
+          <div class="info-block"><div class="info-block-label">Language</div><div class="info-block-val" id="d-lang"></div></div>
+        </div>
+
+        <p class="section-label">AI Insight</p>
+        <div class="detail-ai-content" id="d-ai-content">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+        </div>
+
+        <p class="section-label" style="margin-top:2rem;">Top Cities to Visit</p>
+        <div class="cities-list" id="d-cities"></div>
+
+        <div style="margin-top:2.5rem;">
+          <button class="btn-primary" onclick="goToItinerary()">Plan a Trip Here →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Chat teaser -->
+  <div class="ai-section">
+    <div class="ai-inner">
+      <p class="section-label" style="color:var(--gold)">AI Travel Assistant</p>
+      <h2 class="section-title" style="margin-bottom:0.5rem;">Ask Anything About<br><em style="font-style:italic;color:var(--gold)">Any Place</em></h2>
+      <p style="color:var(--sand);margin-bottom:2rem;line-height:1.7;">Our AI knows about every country, culture, cuisine, visa requirement, hidden gem, and travel tip. Ask away.</p>
+
+      <div class="ai-chat-box" id="home-chat">
+        <div class="chat-history" id="home-chat-history">
+          <div class="msg ai">
+            <div class="msg-avatar">T</div>
+            <div class="msg-bubble">Hello! I'm your ما وراء المسارات وفوقها AI guide. Ask me anything about any country or city — history, culture, food, best time to visit, visa info, hidden gems, or anything else you're curious about. 🌍</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <textarea id="home-chat-input" placeholder="Ask about any country, city, or culture..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendHomeChat();}"></textarea>
+          <button class="chat-send" onclick="sendHomeChat()" id="home-send-btn">Send</button>
+        </div>
+      </div>
+      <div class="quick-prompts">
+        <button class="quick-btn" onclick="setHomeChat('What is the best time to visit Japan?')">Best time for Japan</button>
+        <button class="quick-btn" onclick="setHomeChat('Tell me about the food culture in India')">India food culture</button>
+        <button class="quick-btn" onclick="setHomeChat('Visa requirements for visiting France as an Indian')">France visa info</button>
+        <button class="quick-btn" onclick="setHomeChat('Hidden gems in Morocco')">Morocco hidden gems</button>
+        <button class="quick-btn" onclick="setHomeChat('Top 5 safest countries to travel solo')">Safest solo travel</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>Powered by <span>ما وراء المسارات وفوقها</span> — Explore Every Corner of Our World</footer>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: ITINERARY AI
+══════════════════════════════════════ -->
+<div id="page-itinerary" class="page itinerary-page">
+  <div class="itin-hero">
+    <p class="section-label" style="color:var(--gold);margin-bottom:0.5rem;">AI Trip Planner</p>
+    <h1 class="section-title">Build Your Perfect<br><em style="font-style:italic;color:var(--gold-light)">Itinerary</em></h1>
+    <p style="color:var(--sand);margin-top:0.8rem;max-width:500px;margin:0.8rem auto 0;line-height:1.7;">Tell us where you want to go and our AI creates a detailed day-by-day travel plan just for you.</p>
+  </div>
+
+  <div class="itin-form">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Destination City / Country</label>
+        <input class="form-input" id="itin-dest" type="text" placeholder="e.g. Tokyo, Japan">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Starting From</label>
+        <input class="form-input" id="itin-from" type="text" placeholder="e.g. Mumbai, India">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Duration</label>
+        <select class="form-input" id="itin-days">
+          <option value="3">3 Days</option>
+          <option value="5" selected>5 Days</option>
+          <option value="7">7 Days</option>
+          <option value="10">10 Days</option>
+          <option value="14">14 Days</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Travel Style</label>
+        <select class="form-input" id="itin-style">
+          <option value="cultural">Cultural & Historical</option>
+          <option value="adventure">Adventure & Outdoor</option>
+          <option value="luxury">Luxury & Relaxation</option>
+          <option value="budget">Budget Backpacking</option>
+          <option value="foodie">Food & Culinary</option>
+          <option value="family">Family Friendly</option>
+          <option value="romantic">Romantic Getaway</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Budget Range</label>
+        <select class="form-input" id="itin-budget">
+          <option value="budget">Budget (under $50/day)</option>
+          <option value="mid" selected>Mid-range ($50–$150/day)</option>
+          <option value="luxury">Luxury ($150–$500/day)</option>
+          <option value="ultra">Ultra-luxury ($500+/day)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Travelers</label>
+        <select class="form-input" id="itin-travelers">
+          <option value="solo">Solo Traveler</option>
+          <option value="couple" selected>Couple</option>
+          <option value="friends">Group of Friends</option>
+          <option value="family">Family with Kids</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0.5rem;">
+      <label class="form-label">Special Interests / Notes (optional)</label>
+      <input class="form-input" id="itin-notes" type="text" placeholder="e.g. vegetarian food, no museums, love street art...">
+    </div>
+    <button class="generate-btn" onclick="generateItinerary()" id="gen-btn">✦ Generate My Itinerary</button>
+  </div>
+
+  <div class="itin-output" id="itin-output">
+    <div style="border-top:1px solid var(--sand);padding-top:2rem;">
+      <p class="section-label">Your AI-Crafted Itinerary</p>
+      <h2 class="section-title" id="itin-output-title" style="margin-bottom:2rem;"></h2>
+      <div id="itin-days-output"></div>
+    </div>
+  </div>
+
+  <footer style="margin-top:2rem;">Powered by <span>ما وراء المسارات وفوقها</span> — Explore Every Corner of Our World</footer>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: ASK AI (Full Chat)
+══════════════════════════════════════ -->
+<div id="page-chat" class="page" style="padding-top:80px;">
+  <div class="ai-section" style="min-height:calc(100vh - 80px);display:flex;flex-direction:column;justify-content:center;">
+    <div class="ai-inner">
+      <p class="section-label" style="color:var(--gold)">Full AI Chat</p>
+      <h2 class="section-title" style="margin-bottom:0.5rem;">Your Personal<br><em style="font-style:italic;color:var(--gold-light)">World Guide</em></h2>
+      <p style="color:var(--sand);margin-bottom:1.5rem;line-height:1.7;max-width:540px;">Ask anything — countries, cities, cultures, cuisines, travel tips, visa info, history, hidden gems, climate, safety. ما وراء المسارات وفوقها knows it all.</p>
+
+      <div class="ai-chat-box">
+        <div class="chat-history" id="full-chat-history">
+          <div class="msg ai">
+            <div class="msg-avatar">T</div>
+            <div class="msg-bubble">Welcome to ما وراء المسارات وفوقها! I'm your dedicated world travel and culture guide. I can tell you about any country, city, cuisine, local customs, best travel routes, visa requirements, historical sites, and much more. Where shall we begin? 🌍✈️</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <textarea id="full-chat-input" placeholder="Ask me about any place in the world..." rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendFullChat();}"></textarea>
+          <button class="chat-send" onclick="sendFullChat()" id="full-send-btn">Send</button>
+        </div>
+      </div>
+      <div class="quick-prompts">
+        <button class="quick-btn" onclick="setFullChat('Compare living in Dubai vs Singapore')">Dubai vs Singapore</button>
+        <button class="quick-btn" onclick="setFullChat('Best street food cities in Southeast Asia')">SE Asia street food</button>
+        <button class="quick-btn" onclick="setFullChat('What are the visa-free countries for Indian passport holders?')">Visa-free for Indians</button>
+        <button class="quick-btn" onclick="setFullChat('Tell me about the Northern Lights and best places to see them')">Northern Lights</button>
+        <button class="quick-btn" onclick="setFullChat('Most underrated countries to visit in 2027')">Underrated 2027</button>
+        <button class="quick-btn" onclick="setFullChat('Explain the culture and customs of Saudi Arabia')">Saudi culture</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const COUNTRIES = [
+  { flag:'🇮🇳', name:'India', continent:'Asia', capital:'New Delhi', pop:'1.44 Billion', currency:'Indian Rupee (₹)', lang:'Hindi, English + 20 official', tagline:'Land of spices, ancient temples, and vibrant chaos', cities:['Mumbai','Delhi','Bengaluru','Jaipur','Varanasi','Goa','Chennai','Kolkata'] },
+  { flag:'🇯🇵', name:'Japan', continent:'Asia', capital:'Tokyo', pop:'125 Million', currency:'Japanese Yen (¥)', lang:'Japanese', tagline:'Where ancient tradition meets neon-lit modernity', cities:['Tokyo','Kyoto','Osaka','Hiroshima','Nara','Sapporo','Fukuoka','Yokohama'] },
+  { flag:'🇨🇳', name:'China', continent:'Asia', capital:'Beijing', pop:'1.41 Billion', currency:'Chinese Yuan (¥)', lang:'Mandarin', tagline:'5,000 years of civilisation, endless wonder', cities:['Beijing','Shanghai','Chengdu','Xi\'an','Guangzhou','Shenzhen','Hangzhou','Chongqing'] },
+  { flag:'🇹🇭', name:'Thailand', continent:'Asia', capital:'Bangkok', pop:'72 Million', currency:'Thai Baht (฿)', lang:'Thai', tagline:'Land of Smiles — temples, beaches, and street food paradise', cities:['Bangkok','Chiang Mai','Phuket','Pattaya','Krabi','Koh Samui','Ayutthaya'] },
+  { flag:'🇮🇩', name:'Indonesia', continent:'Asia', capital:'Jakarta', pop:'277 Million', currency:'Indonesian Rupiah (Rp)', lang:'Indonesian (Bahasa)', tagline:'17,000 islands of culture, rice paddies, and coral reefs', cities:['Jakarta','Bali','Yogyakarta','Surabaya','Medan','Lombok','Makassar'] },
+  { flag:'🇻🇳', name:'Vietnam', continent:'Asia', capital:'Hanoi', pop:'98 Million', currency:'Vietnamese Dong (₫)', lang:'Vietnamese', tagline:'Stunning landscapes, rich history, and legendary cuisine', cities:['Hanoi','Ho Chi Minh City','Da Nang','Hoi An','Hue','Nha Trang','Halong Bay'] },
+  { flag:'🇸🇬', name:'Singapore', continent:'Asia', capital:'Singapore City', pop:'5.9 Million', currency:'Singapore Dollar (S$)', lang:'English, Malay, Tamil, Mandarin', tagline:'The city where luxury meets efficiency meets food paradise', cities:['Orchard Road','Marina Bay','Sentosa','Chinatown','Little India','Clarke Quay'] },
+  { flag:'🇫🇷', name:'France', continent:'Europe', capital:'Paris', pop:'68 Million', currency:'Euro (€)', lang:'French', tagline:'Art, gastronomy, and joie de vivre in every corner', cities:['Paris','Lyon','Marseille','Nice','Bordeaux','Strasbourg','Toulouse','Cannes'] },
+  { flag:'🇮🇹', name:'Italy', continent:'Europe', capital:'Rome', pop:'60 Million', currency:'Euro (€)', lang:'Italian', tagline:'Where every city is an open-air museum', cities:['Rome','Venice','Florence','Milan','Naples','Amalfi','Cinque Terre','Bologna'] },
+  { flag:'🇪🇸', name:'Spain', continent:'Europe', capital:'Madrid', pop:'47 Million', currency:'Euro (€)', lang:'Spanish', tagline:'Flamenco, fiestas, and the world\'s best tapas culture', cities:['Madrid','Barcelona','Seville','Valencia','Granada','Bilbao','San Sebastián'] },
+  { flag:'🇬🇧', name:'United Kingdom', continent:'Europe', capital:'London', pop:'67 Million', currency:'British Pound (£)', lang:'English', tagline:'Royal history, rainy charm, and cutting-edge culture', cities:['London','Edinburgh','Manchester','Bath','Oxford','Cambridge','Liverpool','Bristol'] },
+  { flag:'🇩🇪', name:'Germany', continent:'Europe', capital:'Berlin', pop:'84 Million', currency:'Euro (€)', lang:'German', tagline:'Engineering marvel meets fairytale castles and craft beer', cities:['Berlin','Munich','Hamburg','Cologne','Frankfurt','Heidelberg','Dresden','Düsseldorf'] },
+  { flag:'🇬🇷', name:'Greece', continent:'Europe', capital:'Athens', pop:'10.4 Million', currency:'Euro (€)', lang:'Greek', tagline:'Whitewashed islands, ancient ruins, and Mediterranean magic', cities:['Athens','Santorini','Mykonos','Crete','Rhodes','Corfu','Thessaloniki','Meteora'] },
+  { flag:'🇵🇹', name:'Portugal', continent:'Europe', capital:'Lisbon', pop:'10.3 Million', currency:'Euro (€)', lang:'Portuguese', tagline:'Fado music, cobblestone hills, and the world\'s finest pastries', cities:['Lisbon','Porto','Algarve','Sintra','Évora','Braga','Coimbra'] },
+  { flag:'🇳🇴', name:'Norway', continent:'Europe', capital:'Oslo', pop:'5.4 Million', currency:'Norwegian Krone', lang:'Norwegian', tagline:'Fjords, Northern Lights, and midnight sun in pristine wilderness', cities:['Oslo','Bergen','Tromsø','Flåm','Stavanger','Ålesund','Geiranger'] },
+  { flag:'🇿🇦', name:'South Africa', continent:'Africa', capital:'Pretoria / Cape Town', pop:'60 Million', currency:'South African Rand (R)', lang:'11 official languages', tagline:'Safari sunsets, Cape vineyards, and rainbow nation spirit', cities:['Cape Town','Johannesburg','Durban','Kruger National Park','Stellenbosch','Garden Route'] },
+  { flag:'🇲🇦', name:'Morocco', continent:'Africa', capital:'Rabat', pop:'37 Million', currency:'Moroccan Dirham (MAD)', lang:'Arabic, Amazigh, French', tagline:'Sahara dunes, ancient medinas, and spice-scented souks', cities:['Marrakech','Fes','Casablanca','Chefchaouen','Rabat','Essaouira','Merzouga'] },
+  { flag:'🇪🇬', name:'Egypt', continent:'Africa', capital:'Cairo', pop:'107 Million', currency:'Egyptian Pound (E£)', lang:'Arabic', tagline:'Pharaohs, pyramids, and the eternal flow of the Nile', cities:['Cairo','Luxor','Aswan','Alexandria','Hurghada','Sharm el-Sheikh','Giza'] },
+  { flag:'🇰🇪', name:'Kenya', continent:'Africa', capital:'Nairobi', pop:'56 Million', currency:'Kenyan Shilling (KES)', lang:'Swahili, English', tagline:'The Great Migration, Maasai Mara, and endless savannahs', cities:['Nairobi','Mombasa','Kisumu','Maasai Mara','Amboseli','Diani Beach'] },
+  { flag:'🇺🇸', name:'United States', continent:'Americas', capital:'Washington D.C.', pop:'334 Million', currency:'US Dollar ($)', lang:'English', tagline:'From Broadway to the Grand Canyon — impossibly diverse', cities:['New York','Los Angeles','Chicago','Miami','San Francisco','Las Vegas','New Orleans','Seattle'] },
+  { flag:'🇧🇷', name:'Brazil', continent:'Americas', capital:'Brasília', pop:'215 Million', currency:'Brazilian Real (R$)', lang:'Portuguese', tagline:'Carnival, Amazon rainforest, and Ipanema beach vibes', cities:['Rio de Janeiro','São Paulo','Salvador','Manaus','Florianópolis','Foz do Iguaçu','Recife'] },
+  { flag:'🇲🇽', name:'Mexico', continent:'Americas', capital:'Mexico City', pop:'130 Million', currency:'Mexican Peso (MXN)', lang:'Spanish', tagline:'Ancient Aztec ruins, tequila, and the world\'s best tacos', cities:['Mexico City','Cancún','Oaxaca','Guadalajara','Playa del Carmen','San Miguel de Allende','Tulum'] },
+  { flag:'🇦🇷', name:'Argentina', continent:'Americas', capital:'Buenos Aires', pop:'46 Million', currency:'Argentine Peso (ARS)', lang:'Spanish', tagline:'Tango, Patagonia glaciers, and premium Malbec wines', cities:['Buenos Aires','Mendoza','Bariloche','Ushuaia','Córdoba','Salta','El Calafate'] },
+  { flag:'🇵🇪', name:'Peru', continent:'Americas', capital:'Lima', pop:'33 Million', currency:'Peruvian Sol (PEN)', lang:'Spanish, Quechua', tagline:'Machu Picchu, Amazon basin, and the world\'s rising food capital', cities:['Lima','Cusco','Machu Picchu','Arequipa','Puno','Iquitos','Nazca'] },
+  { flag:'🇦🇺', name:'Australia', continent:'Oceania', capital:'Canberra', pop:'26 Million', currency:'Australian Dollar (A$)', lang:'English', tagline:'Outback adventures, coral reefs, and iconic city skylines', cities:['Sydney','Melbourne','Brisbane','Perth','Adelaide','Cairns','Gold Coast','Hobart'] },
+  { flag:'🇳🇿', name:'New Zealand', continent:'Oceania', capital:'Wellington', pop:'5 Million', currency:'NZ Dollar (NZ$)', lang:'English, Māori', tagline:'Hobbit landscapes, geothermal wonders, and adventure sports paradise', cities:['Auckland','Queenstown','Christchurch','Wellington','Rotorua','Milford Sound','Wanaka'] },
+  { flag:'🇦🇪', name:'UAE', continent:'Middle East', capital:'Abu Dhabi', pop:'10 Million', currency:'UAE Dirham (AED)', lang:'Arabic, English widely spoken', tagline:'Sky-high ambition, gold-plated luxury, and desert heritage', cities:['Dubai','Abu Dhabi','Sharjah','Ras Al Khaimah','Fujairah','Ajman'] },
+  { flag:'🇹🇷', name:'Turkey', continent:'Middle East', capital:'Ankara', pop:'85 Million', currency:'Turkish Lira (TRY)', lang:'Turkish', tagline:'Where East meets West — Byzantine domes and bazaars', cities:['Istanbul','Cappadocia','Antalya','Bodrum','Pamukkale','Ephesus','Trabzon'] },
+  { flag:'🇯🇴', name:'Jordan', continent:'Middle East', capital:'Amman', pop:'10.5 Million', currency:'Jordanian Dinar (JD)', lang:'Arabic', tagline:'Petra, Wadi Rum, and the world\'s saltiest sea', cities:['Amman','Petra','Wadi Rum','Aqaba','Jerash','Dead Sea','Madaba'] },
+  { flag:'🇸🇦', name:'Saudi Arabia', continent:'Middle East', capital:'Riyadh', pop:'36 Million', currency:'Saudi Riyal (SAR)', lang:'Arabic', tagline:'Ancient heritage opens its gates — Al-Ula to futuristic NEOM', cities:['Riyadh','Jeddah','Al-Ula','Mecca','Medina','Dammam','NEOM'] },
+];
+
+let currentContinent = 'all';
+let selectedCountry = null;
+
+function renderCountries(list) {
+  const grid = document.getElementById('country-grid');
+  grid.innerHTML = list.map(c => `
+    <div class="country-card" onclick="openCountry('${c.name}')">
+      <div class="country-flag">${c.flag}</div>
+      <div class="country-continent">${c.continent}</div>
+      <div class="country-name">${c.name}</div>
+      <div class="country-tagline">${c.tagline}</div>
+    </div>
+  `).join('');
+}
+
+function filterCountries(q) {
+  let list = COUNTRIES;
+  if (currentContinent !== 'all') list = list.filter(c => c.continent === currentContinent);
+  if (q) list = list.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.continent.toLowerCase().includes(q.toLowerCase()));
+  renderCountries(list);
+}
+
+function filterByContinent(cont, btn) {
+  currentContinent = cont;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterCountries(document.getElementById('country-search').value);
+}
+
+async function openCountry(name) {
+  const c = COUNTRIES.find(x => x.name === name);
+  if (!c) return;
+  selectedCountry = c;
+
+  document.getElementById('country-list-view').style.display = 'none';
+  const detail = document.getElementById('country-detail-view');
+  detail.classList.add('open');
+  detail.scrollIntoView({ behavior: 'smooth' });
+
+  document.getElementById('detail-flag').textContent = c.flag;
+  document.getElementById('detail-name').textContent = c.name;
+  document.getElementById('detail-sub').textContent = c.tagline;
+  document.getElementById('d-capital').textContent = c.capital;
+  document.getElementById('d-pop').textContent = c.pop;
+  document.getElementById('d-currency').textContent = c.currency;
+  document.getElementById('d-lang').textContent = c.lang;
+
+  const aiEl = document.getElementById('d-ai-content');
+  aiEl.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+
+  document.getElementById('d-cities').innerHTML = c.cities.map(city => `
+    <div class="city-card">
+      <div class="city-name">${city}</div>
+      <div class="city-type">${c.name}</div>
+    </div>
+  `).join('');
+
+  try {
+    const res = await callClaude([{
+      role: 'user',
+      content: `Give a vivid, engaging 3-paragraph overview of ${c.name} as a travel destination. Cover: (1) what makes it unique culturally and historically, (2) top experiences and best areas to explore, (3) practical travel tips and best time to visit. Be specific, evocative, and informative. Write naturally — no headings or bullet points, just flowing prose. Max 250 words.`
+    }]);
+    aiEl.textContent = res;
+  } catch {
+    aiEl.textContent = `${c.name} is a fascinating destination rich in culture, history, and unique experiences. From its world-famous landmarks to hidden local gems, there is something for every type of traveler. The country's cuisine, people, and landscapes make it one of the most memorable places to visit on earth.`;
+  }
+}
+
+function closeDetail() {
+  document.getElementById('country-list-view').style.display = 'block';
+  document.getElementById('country-detail-view').classList.remove('open');
+  window.scrollTo({ top: document.getElementById('explore-main').offsetTop - 80, behavior: 'smooth' });
+}
+
+function goToItinerary() {
+  if (selectedCountry) {
+    document.getElementById('itin-dest').value = selectedCountry.capital + ', ' + selectedCountry.name;
+  }
+  showPage('itinerary');
+}
+
+// ── NAVIGATION ──
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  const tabs = { explore: 0, itinerary: 1, chat: 2 };
+  document.querySelectorAll('.nav-tab')[tabs[page]].classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── CLAUDE API ──
+async function callClaude(messages, system = '') {
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 1000,
+    messages
+  };
+  if (system) body.system = system;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content.map(b => b.text || '').join('');
+}
+
+// ── HOME CHAT ──
+const homeChatHistory = [];
+
+async function sendHomeChat() {
+  const input = document.getElementById('home-chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg('home-chat-history', 'user', text);
+  homeChatHistory.push({ role: 'user', content: text });
+  document.getElementById('home-send-btn').disabled = true;
+  const loadId = addMsg('home-chat-history', 'ai', '<div class="loading-dots"><span></span><span></span><span></span></div>');
+  try {
+    const reply = await callClaude(homeChatHistory, 'You are the AI guide for ما وراء المسارات وفوقها, an expert world travel and culture AI guide. You have deep knowledge of every country, city, culture, cuisine, history, visa requirements, travel tips, safety, climate, and hidden gems. Be vivid, specific, and genuinely helpful. Format answers clearly but conversationally. Max 300 words per response.');
+    homeChatHistory.push({ role: 'assistant', content: reply });
+    updateMsg(loadId, 'home-chat-history', reply);
+  } catch (e) {
+    updateMsg(loadId, 'home-chat-history', 'Sorry, I had trouble connecting. Please try again!');
+  }
+  document.getElementById('home-send-btn').disabled = false;
+}
+
+function setHomeChat(text) {
+  document.getElementById('home-chat-input').value = text;
+  sendHomeChat();
+}
+
+// ── FULL CHAT ──
+const fullChatHistory = [];
+
+async function sendFullChat() {
+  const input = document.getElementById('full-chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg('full-chat-history', 'user', text);
+  fullChatHistory.push({ role: 'user', content: text });
+  document.getElementById('full-send-btn').disabled = true;
+  const loadId = addMsg('full-chat-history', 'ai', '<div class="loading-dots"><span></span><span></span><span></span></div>');
+  try {
+    const reply = await callClaude(fullChatHistory, 'You are the AI guide for ما وراء المسارات وفوقها, an expert world travel and culture AI guide. You have deep knowledge of every country, city, culture, cuisine, history, visa requirements, travel tips, safety, climate, and hidden gems. Be vivid, specific, and genuinely helpful. Format answers clearly but conversationally. Max 350 words per response.');
+    fullChatHistory.push({ role: 'assistant', content: reply });
+    updateMsg(loadId, 'full-chat-history', reply);
+  } catch (e) {
+    updateMsg(loadId, 'full-chat-history', 'Sorry, I had trouble connecting. Please try again!');
+  }
+  document.getElementById('full-send-btn').disabled = false;
+}
+
+function setFullChat(text) {
+  document.getElementById('full-chat-input').value = text;
+  sendFullChat();
+}
+
+// ── MSG HELPERS ──
+let msgCounter = 0;
+function addMsg(historyId, type, html) {
+  const id = 'msg-' + (++msgCounter);
+  const avatar = type === 'ai' ? 'T' : 'Me';
+  const history = document.getElementById(historyId);
+  const div = document.createElement('div');
+  div.className = `msg ${type}`;
+  div.id = id;
+  div.innerHTML = `<div class="msg-avatar">${avatar}</div><div class="msg-bubble">${html}</div>`;
+  history.appendChild(div);
+  history.scrollTop = history.scrollHeight;
+  return id;
+}
+
+function updateMsg(id, historyId, text) {
+  const el = document.getElementById(id);
+  if (el) el.querySelector('.msg-bubble').textContent = text;
+  const history = document.getElementById(historyId);
+  if (history) history.scrollTop = history.scrollHeight;
+}
+
+// ── ITINERARY GENERATOR ──
+async function generateItinerary() {
+  const dest = document.getElementById('itin-dest').value.trim();
+  const from = document.getElementById('itin-from').value.trim();
+  const days = document.getElementById('itin-days').value;
+  const style = document.getElementById('itin-style').value;
+  const budget = document.getElementById('itin-budget').value;
+  const travelers = document.getElementById('itin-travelers').value;
+  const notes = document.getElementById('itin-notes').value.trim();
+
+  if (!dest) { alert('Please enter a destination!'); return; }
+
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating Your Itinerary...';
+
+  const output = document.getElementById('itin-output');
+  output.classList.remove('show');
+  document.getElementById('itin-days-output').innerHTML = '<div style="text-align:center;padding:2rem;"><div class="loading-dots"><span></span><span></span><span></span></div></div>';
+  output.classList.add('show');
+  output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  document.getElementById('itin-output-title').textContent = `${days}-Day ${style.charAt(0).toUpperCase()+style.slice(1)} Trip to ${dest}`;
+
+  const prompt = `Create a detailed ${days}-day travel itinerary for ${dest}${from ? ' (travelling from ' + from + ')' : ''}.
+
+Travel style: ${style}
+Budget: ${budget}  
+Travelers: ${travelers}
+${notes ? 'Special notes: ' + notes : ''}
+
+Format EXACTLY like this — each day on its own block:
+
+DAY 1: [Title]
+[2-3 paragraphs with morning, afternoon, and evening activities. Include specific restaurant names, landmark names, neighborhoods, practical tips, and estimated costs where helpful.]
+
+DAY 2: [Title]
+[Content...]
+
+Continue for all ${days} days. Be specific, vivid, and practical. Include real place names. End with a short "Travel Tips" section.`;
+
+  try {
+    const reply = await callClaude([{ role: 'user', content: prompt }],
+      'You are an expert travel planner with firsthand knowledge of destinations worldwide. Create detailed, practical, and inspiring itineraries with real place names, local tips, and honest advice. Be specific — avoid generic suggestions.');
+
+    const dayBlocks = reply.split(/\n(?=DAY \d+:|Travel Tips:)/i).filter(b => b.trim());
+    const container = document.getElementById('itin-days-output');
+    container.innerHTML = '';
+
+    dayBlocks.forEach((block, i) => {
+      const lines = block.trim().split('\n');
+      const title = lines[0].trim();
+      const content = lines.slice(1).join('\n').trim();
+      const div = document.createElement('div');
+      div.className = 'itin-day';
+      div.style.animationDelay = (i * 0.1) + 's';
+      div.innerHTML = `
+        <div class="itin-day-title">${title}</div>
+        <div class="itin-day-content">${content}</div>
+      `;
+      container.appendChild(div);
+    });
+  } catch (e) {
+    document.getElementById('itin-days-output').innerHTML = '<p style="color:var(--muted)">Sorry, could not generate itinerary. Please try again.</p>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✦ Generate My Itinerary';
+}
+
+// ── INIT ──
+renderCountries(COUNTRIES);
+</script>
+</body>
+</html>
